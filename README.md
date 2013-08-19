@@ -1,8 +1,8 @@
 Shaker.go
 =========
 
-go run shaker.go strange person
+go run shaker.go the strange person eats cars often
 
---> unusual individual
+--> the unusual individual chow auto infrequently
 
 etc...

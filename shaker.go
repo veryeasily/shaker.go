@@ -50,6 +50,7 @@ func printJson(f *map[string]interface{}) (str string) {
 
 func main() {
     var words = []string{"friendly", "bad"}
+    temp := ""
     if len(os.Args) > 1 {
         words = os.Args[1:]
     }
@@ -58,6 +59,7 @@ func main() {
     length := len(words)
     replacements = make([]string, length, length)
     for i, word := range words {
+        temp = word
         res, err := http.Get("http://words.bighugelabs.com/api/2/7c1a1031524ef2b6d72070ec9bcf5e5d/" + word + "/json")
         if err != nil {
             log.Fatal(err)
@@ -67,12 +69,15 @@ func main() {
         if err != nil {
             log.Fatal(err)
         }
-        var f map[string]interface{}
-        err = json.Unmarshal(contents, &f)
-        if err != nil {
-            log.Fatal(err)
+        if string(contents) != "" {
+            var f map[string]interface{}
+            err = json.Unmarshal(contents, &f)
+            if err != nil {
+                log.Fatal(err)
+            }
+            temp = printJson(&f)
         }
-        replacements[i] = printJson(&f)
+        replacements[i] = temp
     }
     str = strings.Join(replacements, " ")
     fmt.Println("")
