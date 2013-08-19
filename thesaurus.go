@@ -75,5 +75,7 @@ func main() {
         replacements[i] = printJson(&f)
     }
     str = strings.Join(replacements, " ")
+    fmt.Println("")
+    fmt.Println("")
     fmt.Println(str)
 }
