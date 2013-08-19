@@ -3,9 +3,10 @@ package main
 import (
     "encoding/json"
 	"fmt"
+    "io/ioutil"
 	"log"
 	"net/http"
-    "io/ioutil"
+    "os"
 )
 
 type JSON struct {
@@ -37,6 +38,9 @@ func printJson(f *map[string]interface{}) {
 
 func main() {
     var words = []string{"friendly", "bad"}
+    if len(os.Args) > 1 {
+        words = os.Args[1:]
+    }
     for _, word := range words {
         res, err := http.Get("http://words.bighugelabs.com/api/2/7c1a1031524ef2b6d72070ec9bcf5e5d/" + word + "/json")
         if err != nil {
