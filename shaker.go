@@ -14,6 +14,11 @@ type JSON struct {
     nodes map[string]*JSON
 }
 
+type Word struct {
+    word string
+    i int
+}
+
 func printJson(f *map[string]interface{}) (str string) {
     for k, v := range *f {
         switch vv := v.(type) {
@@ -33,11 +38,6 @@ func printJson(f *map[string]interface{}) (str string) {
         if str != "" { break }
     }
     return str
-}
-
-type Word struct {
-    word string
-    i int
 }
 
 func main() {
