@@ -19,11 +19,11 @@ func printJson(f *map[string]interface{}) (str string) {
         switch vv := v.(type) {
             case string:
                 fmt.Println(k, "is string", vv)
-                if k != "syn" || k != "sim" { break }
+                if k != "syn" && k != "sim" { break }
                 str = v.(string)
             case []interface{}:
                 fmt.Println(k, "is an array")
-                if k != "syn" || k != "sim" { break }
+                if k != "syn" && k != "sim" { break }
                 str = vv[0].(string)
             case map[string]interface{}:
                 fmt.Println(k, "is an object")
