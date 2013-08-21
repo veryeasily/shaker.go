@@ -19,14 +19,12 @@ func printJson(f *map[string]interface{}) (str string) {
         switch vv := v.(type) {
             case string:
                 fmt.Println(k, "is string", vv)
+                if k != "syn" || k != "sim" { break }
                 str = v.(string)
             case []interface{}:
                 fmt.Println(k, "is an array")
-                for i, u := range vv {
-                    fmt.Println(i, u)
-                    str = u.(string)
-                    break
-                }
+                if k != "syn" || k != "sim" { break }
+                str = vv[0].(string)
             case map[string]interface{}:
                 fmt.Println(k, "is an object")
                 temp := v.(map[string]interface{})
@@ -48,7 +46,7 @@ func main() {
         words = os.Args[1:]
     }
     str, length := "", len(words)
-    c := make(chan Word, length)
+    c := make(chan *Word, length)
     for i, word := range words {
         go getWord(word, i, c)
     }
@@ -57,7 +55,8 @@ func main() {
     for thing := range c {
         words[thing.i] = thing.word
         x++
-        if x == 10 { break }
+        fmt.Println(x)
+        if x == length { break }
     }
     str = strings.Join(words, " ")
     fmt.Println("")
@@ -65,7 +64,7 @@ func main() {
     fmt.Println(str)
 }
 
-func getWord(word string, i int, c chan Word) {
+func getWord(word string, i int, c chan *Word) {
     fmt.Println("Started a goroutine")
     res, err := http.Get("http://words.bighugelabs.com/api/2/7c1a1031524ef2b6d72070ec9bcf5e5d/" + word + "/json")
     if err != nil { log.Fatal(err) }
@@ -76,8 +75,8 @@ func getWord(word string, i int, c chan Word) {
         var f map[string]interface{}
         err = json.Unmarshal(contents, &f)
         if err != nil { log.Fatal(err) }
-        word = printJson(&f)
+        if u := printJson(&f); u != "" { word = u }
     }
     fmt.Println(word)
-    c <- Word{word, i}
+    c <- &Word{word, i}
 }
