@@ -1,8 +1,13 @@
 Shaker.go
 =========
 
-go run shaker.go the strange person eats cars often
+First:
 
---> the unusual individual chow auto infrequently
+    go build shaker.go
+
+Then:
+
+    ./shaker the strange person eats cars often
+    --> the unusual individual chow auto infrequently
 
 etc...
