@@ -28,25 +28,6 @@ func myLog(str interface{}) {
     }
 }
 
-func printJson(f *map[string]interface{}) (str string) {
-    for k, v := range *f {
-        switch vv := v.(type) {
-            case []interface{}:
-                // fmt.Println(k, "is an array", v)
-                if k != "syn" && k != "sim" { break }
-                str = vv[0].(string)
-            case map[string]interface{}:
-                // fmt.Println(k, "is an object")
-                str = printJson(&vv)
-            default:
-                myLog(k)
-                myLog("is weird")
-        }
-        if str != "" { break }
-    }
-    return str
-}
-
 func main() {
     var words = []string{"friendly", "bad"}
     if len(os.Args) > 1 {
@@ -88,4 +69,23 @@ func main() {
     fmt.Println("")
     fmt.Println("")
     fmt.Println(str)
+}
+
+func printJson(f *map[string]interface{}) (str string) {
+    for k, v := range *f {
+        switch vv := v.(type) {
+            case []interface{}:
+                // fmt.Println(k, "is an array", v)
+                if k != "syn" && k != "sim" { break }
+                str = vv[0].(string)
+            case map[string]interface{}:
+                // fmt.Println(k, "is an object")
+                str = printJson(&vv)
+            default:
+                myLog(k)
+                myLog("is weird")
+        }
+        if str != "" { break }
+    }
+    return str
 }
