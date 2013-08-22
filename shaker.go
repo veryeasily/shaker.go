@@ -66,9 +66,7 @@ func main() {
 
     <-done
     str := strings.Join(words, " ")
-    fmt.Println("")
-    fmt.Println("")
-    fmt.Println(str)
+    fmt.Println("\n\n" + str)
 }
 
 func printJson(f *map[string]interface{}) (str string) {
