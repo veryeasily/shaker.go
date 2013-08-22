@@ -10,30 +10,37 @@ import (
     "strings"
 )
 
-type JSON struct {
-    nodes map[string]*JSON
+// LOGGING bool
+// constant that tells us if we're logging or not
+var LOGGING bool = false
+
+func myFatal(err error) {
+    if LOGGING {
+        if (err != nil) {
+            log.Fatal(err)
+        }
+    }
 }
 
-type Word struct {
-    word string
-    i int
+func myLog(str interface{}) {
+    if LOGGING {
+        fmt.Println(str)
+    }
 }
 
 func printJson(f *map[string]interface{}) (str string) {
     for k, v := range *f {
         switch vv := v.(type) {
-            case string:
-                fmt.Println(k, "is string", vv)
-                if k != "syn" && k != "sim" { break }
-                str = v.(string)
             case []interface{}:
-                fmt.Println(k, "is an array")
+                // fmt.Println(k, "is an array", v)
                 if k != "syn" && k != "sim" { break }
                 str = vv[0].(string)
             case map[string]interface{}:
-                fmt.Println(k, "is an object")
-                temp := v.(map[string]interface{})
-                str = printJson(&temp)
+                // fmt.Println(k, "is an object")
+                str = printJson(&vv)
+            default:
+                myLog(k)
+                myLog("is weird")
         }
         if str != "" { break }
     }
@@ -45,38 +52,42 @@ func main() {
     if len(os.Args) > 1 {
         words = os.Args[1:]
     }
-    str, length := "", len(words)
-    c := make(chan *Word, length)
-    for i, word := range words {
-        go getWord(word, i, c)
-    }
-    fmt.Println("made it here")
+    length := len(words)
+    done := make(chan bool)
     x := 0
-    for thing := range c {
-        words[thing.i] = thing.word
-        x++
-        fmt.Println(x)
-        if x == length { break }
+
+    for i, word := range words {
+        go func(word string, i int) {
+            myLog("started go routine")
+            res, err := http.Get("http://words.bighugelabs.com/api/2/7c1a1031524ef2b6d72070ec9bcf5e5d/" + word + "/json")
+            // fmt.Println(word)
+            myLog("made it here")
+            myFatal(err)
+            contents, err := ioutil.ReadAll(res.Body)
+            defer res.Body.Close()
+            myFatal(err)
+            if string(contents) != "" {
+                var f map[string]interface{}
+                err = json.Unmarshal(contents, &f)
+                myFatal(err)
+                if u := printJson(&f); u != "" {
+                    word = u
+                }
+            }
+            words[i] = word
+            x++
+            myLog(x)
+            if x == length {
+                done <- true
+            }
+        }(word, i)
     }
-    str = strings.Join(words, " ")
+
+    <-done
+    str := strings.Join(words, " ")
     fmt.Println("")
     fmt.Println("")
     fmt.Println(str)
-}
 
-func getWord(word string, i int, c chan *Word) {
-    fmt.Println("Started a goroutine")
-    res, err := http.Get("http://words.bighugelabs.com/api/2/7c1a1031524ef2b6d72070ec9bcf5e5d/" + word + "/json")
-    if err != nil { log.Fatal(err) }
-    contents, err := ioutil.ReadAll(res.Body)
-    defer res.Body.Close()
-    if err != nil { log.Fatal(err) }
-    if string(contents) != "" {
-        var f map[string]interface{}
-        err = json.Unmarshal(contents, &f)
-        if err != nil { log.Fatal(err) }
-        if u := printJson(&f); u != "" { word = u }
-    }
-    fmt.Println(word)
-    c <- &Word{word, i}
+
 }
