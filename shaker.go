@@ -1,89 +1,130 @@
 package main
 
 import (
-    "encoding/json"
+	"encoding/json"
 	"fmt"
-    "io/ioutil"
+	"io/ioutil"
 	"log"
 	"net/http"
-    "os"
-    "strings"
+	"os"
+    "time"
 )
 
 // LOGGING bool
 // constant that tells us if we're logging or not
 var LOGGING bool = false
+var requests chan Request
+
+type Request struct {
+	word           string
+	index          uint
+	thesaurus_word chan string
+}
+
+type Result struct {
+    word string
+    index uint
+}
 
 func myFatal(err error) {
-    if LOGGING {
-        if (err != nil) {
-            log.Fatal(err)
-        }
-    }
+	if LOGGING {
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 
 func myLog(str interface{}) {
-    if LOGGING {
-        fmt.Println(str)
-    }
+	if LOGGING {
+		fmt.Println(str)
+	}
+}
+
+func getThesaurusWord(word string) string {
+	myLog("Getting word")
+	res, err := http.Get("http://words.bighugelabs.com/api/2/7c1a1031524ef2b6d72070ec9bcf5e5d/" + word + "/json")
+	// fmt.Println(word)
+	myLog("made it here")
+	myFatal(err)
+	contents, err := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+	myFatal(err)
+	if string(contents) != "" {
+		var f map[string]interface{}
+		err = json.Unmarshal(contents, &f)
+		myFatal(err)
+		if u := printJson(&f); u != "" {
+			return word
+		}
+	}
+	return ""
+}
+
+func GetWords(words []string) []string {
+	l := len(words)
+	newWords := make([]string, l)
+	results := make(chan Result, l)
+
+	i := 0
+	messagesRecieved := 0
+	for {
+		if messagesRecieved == l {
+			break
+		}
+		select {
+		case result := <-results:
+			newWords[result.index] = result.word
+			messagesRecieved += 1
+		default:
+			if i != l {
+                request := Request{word: words[i], index: index, thesaurus_word: results}
+				requests <- request
+				i += 1
+			}
+		}
+	}
+	return newWords
 }
 
 func main() {
-    var words = []string{"friendly", "bad"}
-    if len(os.Args) > 1 {
-        words = os.Args[1:]
-    }
-    length := len(words)
-    done := make(chan bool)
-    x := 0
+    time := time.Now()
+	NumWorkers := 10
+	var words = []string{"friendly", "bad"}
+	if len(os.Args) > 1 {
+		words = os.Args[1:]
+	}
 
-    for i, word := range words {
-        go func(word string, i int) {
-            myLog("started go routine")
-            res, err := http.Get("http://words.bighugelabs.com/api/2/7c1a1031524ef2b6d72070ec9bcf5e5d/" + word + "/json")
-            // fmt.Println(word)
-            myLog("made it here")
-            myFatal(err)
-            contents, err := ioutil.ReadAll(res.Body)
-            defer res.Body.Close()
-            myFatal(err)
-            if string(contents) != "" {
-                var f map[string]interface{}
-                err = json.Unmarshal(contents, &f)
-                myFatal(err)
-                if u := printJson(&f); u != "" {
-                    word = u
-                }
-            }
-            words[i] = word
-            x++
-            myLog(x)
-            if x == length {
-                done <- true
-            }
-        }(word, i)
-    }
-
-    <-done
-    str := strings.Join(words, " ")
-    fmt.Println("\n\n" + str)
+	requests = make(chan Request, NumWorkers)
+	for i := 0; i < NumWorkers; i++ {
+		go func(requests chan Request) {
+			for request := range requests {
+                newWord := getThesaurusWord(request.word)
+                request.thesaurus_word <- Result{word: newWord, index: request.index}
+			}
+		}(requests)
+	}
+	log.Println("New words: %v", GetWords(words))
 }
 
 func printJson(f *map[string]interface{}) (str string) {
-    for k, v := range *f {
-        switch vv := v.(type) {
-            case []interface{}:
-                // fmt.Println(k, "is an array", v)
-                if k != "syn" && k != "sim" { break }
-                str = vv[0].(string)
-            case map[string]interface{}:
-                // fmt.Println(k, "is an object")
-                str = printJson(&vv)
-            default:
-                myLog(k)
-                myLog("is weird")
-        }
-        if str != "" { break }
-    }
-    return str
+	for k, v := range *f {
+		switch vv := v.(type) {
+		case []interface{}:
+			// fmt.Println(k, "is an array", v)
+			if k != "syn" && k != "sim" {
+				break
+			}
+			str = vv[0].(string)
+		case map[string]interface{}:
+			// fmt.Println(k, "is an object")
+			str = printJson(&vv)
+		default:
+			myLog(k)
+			myLog("is weird")
+		}
+		if str != "" {
+			break
+		}
+	}
+	return str
 }
