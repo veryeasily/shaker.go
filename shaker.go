@@ -7,18 +7,17 @@ import (
 	"log"
 	"net/http"
 	"os"
-    "time"
 )
 
 // LOGGING bool
 // constant that tells us if we're logging or not
-var LOGGING bool = false
+var LOGGING bool = true
 var requests chan Request
 
 type Request struct {
 	word           string
 	index          uint
-	thesaurus_word chan string
+	thesaurus_word chan Result
 }
 
 type Result struct {
@@ -42,9 +41,9 @@ func myLog(str interface{}) {
 
 func getThesaurusWord(word string) string {
 	myLog("Getting word")
+  myLog(word)
 	res, err := http.Get("http://words.bighugelabs.com/api/2/7c1a1031524ef2b6d72070ec9bcf5e5d/" + word + "/json")
-	// fmt.Println(word)
-	myLog("made it here")
+  myLog("just got word")
 	myFatal(err)
 	contents, err := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
@@ -54,19 +53,19 @@ func getThesaurusWord(word string) string {
 		err = json.Unmarshal(contents, &f)
 		myFatal(err)
 		if u := printJson(&f); u != "" {
-			return word
+			return u
 		}
 	}
 	return ""
 }
 
 func GetWords(words []string) []string {
-	l := len(words)
+	l := uint(len(words))
 	newWords := make([]string, l)
 	results := make(chan Result, l)
 
-	i := 0
-	messagesRecieved := 0
+	i := uint(0)
+	messagesRecieved := uint(0)
 	for {
 		if messagesRecieved == l {
 			break
@@ -76,9 +75,11 @@ func GetWords(words []string) []string {
 			newWords[result.index] = result.word
 			messagesRecieved += 1
 		default:
+      fmt.Printf("messagesRecieved: %v\n", messagesRecieved)
 			if i != l {
-                request := Request{word: words[i], index: index, thesaurus_word: results}
+        request := Request{word: words[i], index: i, thesaurus_word: results}
 				requests <- request
+        fmt.Println("gave a request")
 				i += 1
 			}
 		}
@@ -87,7 +88,6 @@ func GetWords(words []string) []string {
 }
 
 func main() {
-    time := time.Now()
 	NumWorkers := 10
 	var words = []string{"friendly", "bad"}
 	if len(os.Args) > 1 {
@@ -98,12 +98,15 @@ func main() {
 	for i := 0; i < NumWorkers; i++ {
 		go func(requests chan Request) {
 			for request := range requests {
-                newWord := getThesaurusWord(request.word)
-                request.thesaurus_word <- Result{word: newWord, index: request.index}
+        fmt.Println("got a request")
+        fmt.Println(request.word)
+        newWord := getThesaurusWord(request.word)
+        fmt.Println(newWord)
+        request.thesaurus_word <- Result{word: newWord, index: request.index}
 			}
 		}(requests)
 	}
-	log.Println("New words: %v", GetWords(words))
+  fmt.Printf("New words: %v\n", GetWords(words))
 }
 
 func printJson(f *map[string]interface{}) (str string) {
