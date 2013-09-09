@@ -7,22 +7,24 @@ import (
 	"log"
 	"net/http"
 	"os"
+  "time"
 )
 
 // LOGGING bool
 // constant that tells us if we're logging or not
-var LOGGING bool = true
+var LOGGING bool = false
 var requests chan Request
+var NUMWORKERS int = 10
 
 type Request struct {
 	word           string
-	index          uint
+	index          int
 	thesaurus_word chan Result
 }
 
 type Result struct {
     word string
-    index uint
+    index int
 }
 
 func myFatal(err error) {
@@ -56,57 +58,65 @@ func getThesaurusWord(word string) string {
 			return u
 		}
 	}
-	return ""
+	return word
 }
 
 func GetWords(words []string) []string {
-	l := uint(len(words))
+	l := len(words)
 	newWords := make([]string, l)
-	results := make(chan Result, l)
+	results := make(chan Result, NUMWORKERS)
 
-	i := uint(0)
-	messagesRecieved := uint(0)
-	for {
-		if messagesRecieved == l {
-			break
-		}
-		select {
-		case result := <-results:
-			newWords[result.index] = result.word
-			messagesRecieved += 1
-		default:
-      fmt.Printf("messagesRecieved: %v\n", messagesRecieved)
-			if i != l {
-        request := Request{word: words[i], index: i, thesaurus_word: results}
-				requests <- request
-        fmt.Println("gave a request")
-				i += 1
-			}
-		}
+	messagesRecieved := 0
+  // fmt.Printf("Number of words is %v\n", l)
+  i := 0
+  for i < l {
+    request := Request{word: words[i], index: i, thesaurus_word: results}
+    requests <- request
+    // fmt.Println("gave a request")
+    // fmt.Printf("i = %v\n", i)
+    // fmt.Printf("l = %v\n", l)
+    i++
+  }
+  // fmt.Printf("i == l is %v", i==l)
+  // fmt.Printf("Left the loop?\n")
+
+	for messagesRecieved < l {
+    // fmt.Println("inside the loop")
+    result := <-results
+    // fmt.Println("inside of range")
+    newWords[result.index] = result.word
+    messagesRecieved += 1
+    // fmt.Println(messagesRecieved)
 	}
 	return newWords
 }
 
 func main() {
-	NumWorkers := 10
+  startingTime := time.Now()
+	NUMWORKERS := 10
 	var words = []string{"friendly", "bad"}
 	if len(os.Args) > 1 {
 		words = os.Args[1:]
 	}
 
-	requests = make(chan Request, NumWorkers)
-	for i := 0; i < NumWorkers; i++ {
+	requests = make(chan Request, NUMWORKERS)
+	for i := 0; i < NUMWORKERS; i++ {
 		go func(requests chan Request) {
 			for request := range requests {
-        fmt.Println("got a request")
-        fmt.Println(request.word)
+        // fmt.Println("got a request")
+        // fmt.Println(request.word)
         newWord := getThesaurusWord(request.word)
-        fmt.Println(newWord)
+        // fmt.Println("got word and pushing into results")
+        // fmt.Println(newWord)
         request.thesaurus_word <- Result{word: newWord, index: request.index}
 			}
 		}(requests)
 	}
   fmt.Printf("New words: %v\n", GetWords(words))
+  endingTime := time.Now()
+  fmt.Printf("Starting time was %v\n", startingTime.UnixNano())
+  fmt.Printf("Ending time was %v\n", endingTime.UnixNano())
+  fmt.Printf("Total nanoseconds elapsed is %v\n", endingTime.UnixNano() - startingTime.UnixNano())
 }
 
 func printJson(f *map[string]interface{}) (str string) {
