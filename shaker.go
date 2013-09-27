@@ -56,7 +56,7 @@ func getThesaurusWord(word string) string {
 			return u
 		}
 	}
-	return ""
+	return word
 }
 
 func GetWords(words []string) []string {
